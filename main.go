@@ -22,6 +22,7 @@ type PolytopiaSaveOutput struct {
 	PlayerData        []PlayerData
 	FileOffsetMap     map[string]int
 	TribeCityMap      map[int][]CityLocationData
+	TurnCaptureMap    map[int][]ActionCaptureCity
 }
 
 type CityLocationData struct {
@@ -165,6 +166,10 @@ func ParsePolytopiaFile(streamReader *io.SectionReader) (*PolytopiaSaveOutput, e
 
 	tribeCityMap := buildTribeCityMap(currentMapHeaderOutput, tileData)
 
+	_ = readFixedList(streamReader, 2)
+
+	turnCaptureMap := readAllActions(streamReader)
+
 	output := &PolytopiaSaveOutput{
 		MapHeight:         currentMapHeaderOutput.MapHeight,
 		MapWidth:          currentMapHeaderOutput.MapWidth,
@@ -177,6 +182,7 @@ func ParsePolytopiaFile(streamReader *io.SectionReader) (*PolytopiaSaveOutput, e
 		PlayerData:        playerData,
 		FileOffsetMap:     fileOffsetMap,
 		TribeCityMap:      tribeCityMap,
+		TurnCaptureMap:    turnCaptureMap,
 	}
 	return output, nil
 }
