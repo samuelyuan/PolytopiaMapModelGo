@@ -17,6 +17,12 @@ type FileInfo struct {
 	GameVersion   int
 }
 
+type UnitLocationData struct {
+	X        int
+	Y        int
+	UnitType int
+}
+
 func WriteUint8AtFileOffset(inputFilename string, offset int, value int) {
 	inputFile, err := os.OpenFile(inputFilename, os.O_RDWR, 0644)
 	defer inputFile.Close()

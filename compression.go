@@ -10,11 +10,27 @@ import (
 )
 
 func DecompressFile(inputFilename string) {
+	decompressedContents := GetDecompressedContents(inputFilename)
+	decompressedLength := len(decompressedContents)
+
+	decompressedFilename := inputFilename + ".decomp"
+	if err := os.WriteFile(decompressedFilename, decompressedContents[:decompressedLength], 0666); err != nil {
+		log.Fatal("Error writing decompressed contents", err)
+	}
+}
+
+func BuildReaderForDecompressedFile(inputFilename string) (*bytes.Reader, int) {
+	decompressedContents := GetDecompressedContents(inputFilename)
+	decompressedLength := len(decompressedContents)
+	return bytes.NewReader(decompressedContents), decompressedLength
+}
+
+func GetDecompressedContents(inputFilename string) []byte {
 	inputFile, err := os.Open(inputFilename)
 	defer inputFile.Close()
 	if err != nil {
 		log.Fatal("Failed to load state file: ", err)
-		return
+		return nil
 	}
 
 	inputBuffer := new(bytes.Buffer)
@@ -45,10 +61,7 @@ func DecompressFile(inputFilename string) {
 		panic(err)
 	}
 
-	decompressedFilename := inputFilename + ".decomp"
-	if err := os.WriteFile(decompressedFilename, decompressedContents[:decompressedLength], 0666); err != nil {
-		log.Fatal("Error writing decompressed contents", err)
-	}
+	return decompressedContents[:decompressedLength]
 }
 
 func CompressFile(inputFilename string, outputFilename string) {
