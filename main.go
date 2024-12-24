@@ -1,6 +1,7 @@
 package polytopiamapmodel
 
 import (
+	"fmt"
 	"io"
 	"log"
 	"os"
@@ -21,6 +22,7 @@ type PolytopiaSaveOutput struct {
 	MaxTurn           int
 	PlayerData        []PlayerData
 	FileOffsetMap     map[string]int
+	OwnerTribeMap     map[int]int
 	TribeCityMap      map[int][]CityLocationData
 	TurnCaptureMap    map[int][]ActionCaptureCity
 }
@@ -74,6 +76,21 @@ func readAllPlayerData(streamReader *io.SectionReader) []PlayerData {
 	updateFileOffsetMap(fileOffsetMap, streamReader, allPlayersEndKey)
 
 	return allPlayerData
+}
+
+func buildOwnerTribeMap(allPlayerData []PlayerData) map[int]int {
+	ownerTribeMap := make(map[int]int)
+
+	for i := 0; i < len(allPlayerData); i++ {
+		playerData := allPlayerData[i]
+		mappedTribe, ok := ownerTribeMap[playerData.PlayerId]
+		if ok {
+			log.Fatal(fmt.Sprintf("Owner to tribe map has duplicate player id %v already mapped to %v", playerData.PlayerId, mappedTribe))
+		}
+		ownerTribeMap[playerData.PlayerId] = playerData.Tribe
+	}
+
+	return ownerTribeMap
 }
 
 func buildTribeCityMap(currentMapHeaderOutput MapHeaderOutput, tileData [][]TileData) map[int][]CityLocationData {
@@ -150,6 +167,8 @@ func ParsePolytopiaFile(streamReader *io.SectionReader) (*PolytopiaSaveOutput, e
 	readTileData(streamReader, initialTileData, initialMapHeaderOutput.MapWidth, initialMapHeaderOutput.MapHeight, gameVersion)
 	initialPlayerData := readAllPlayerData(streamReader)
 
+	ownerTribeMap := buildOwnerTribeMap(initialPlayerData)
+
 	_ = readFixedList(streamReader, 3)
 
 	// Read current map state
@@ -164,6 +183,7 @@ func ParsePolytopiaFile(streamReader *io.SectionReader) (*PolytopiaSaveOutput, e
 	readTileData(streamReader, tileData, currentMapHeaderOutput.MapWidth, currentMapHeaderOutput.MapHeight, gameVersion)
 	playerData := readAllPlayerData(streamReader)
 
+	ownerTribeMap = buildOwnerTribeMap(playerData)
 	tribeCityMap := buildTribeCityMap(currentMapHeaderOutput, tileData)
 
 	_ = readFixedList(streamReader, 2)
@@ -181,6 +201,7 @@ func ParsePolytopiaFile(streamReader *io.SectionReader) (*PolytopiaSaveOutput, e
 		MaxTurn:           int(currentMapHeaderOutput.MapHeaderInput.CurrentTurn),
 		PlayerData:        playerData,
 		FileOffsetMap:     fileOffsetMap,
+		OwnerTribeMap:     ownerTribeMap,
 		TribeCityMap:      tribeCityMap,
 		TurnCaptureMap:    turnCaptureMap,
 	}

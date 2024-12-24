@@ -179,7 +179,7 @@ func readAllActions(streamReader *io.SectionReader) map[int][]ActionCaptureCity 
 
 			if action.PlayerId == 255 {
 				turn++
-				fmt.Println("Start new turn", turn)
+				replayActions = append(replayActions, fmt.Sprintf("Start new turn %v", turn))
 			}
 		} else if actionType == 16 {
 			action := ActionUpgrade{}
