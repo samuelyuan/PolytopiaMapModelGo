@@ -81,6 +81,8 @@ The tile data contains resource data, improvement data, unit data if they exist 
 | bool | 1 byte | HasWaterRoute |
 | uint16 | 2 bytes | TileSkin |
 | byte[2] | 2 bytes | Unknown |
+| uint8 | 1 byte | FloodedFlag (version 105+) |
+| uint32 | 4 bytes | FloodedValue (version 105+, only if FloodedFlag == 1) |
 
 #### Improvement Data
 
@@ -138,8 +140,8 @@ The size of the player list is a uint16 followed by an array of players.
 | uint16 | 2 bytes | Tribe |
 | uint8 | 1 byte | UnknownByte1 |
 | uint32 | 4 bytes | DifficultyHandicap |
-| uint16 | 2 bytes | AggressionsByPlayers length |
-| PlayerAggression array | AggressionsByPlayersLength*5 | AggressionsByPlayers |
+| uint16 | 2 bytes | AggressionsByPlayers length (version < 114) |
+| PlayerAggression array | AggressionsByPlayersLength*5 | AggressionsByPlayers (version < 114) |
 | uint32 | 4 bytes | Currency |
 | uint32 | 4 bytes | Score |
 | uint32 | 4 bytes | UnknownInt2 |
