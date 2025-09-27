@@ -124,7 +124,7 @@ var (
 func TestDeserializePlayerDataFromBytes(t *testing.T) {
 	inputByteData := playerBytes
 	streamReader := io.NewSectionReader(bytes.NewReader(inputByteData), 0, int64(len(inputByteData)))
-	result := DeserializePlayerDataFromBytes(streamReader)
+	result := DeserializePlayerDataFromBytes(streamReader, 100) // Use version 100 for test (includes aggressions array)
 	expected := playerData
 
 	if !reflect.DeepEqual(result, expected) {
@@ -133,7 +133,7 @@ func TestDeserializePlayerDataFromBytes(t *testing.T) {
 }
 
 func TestSerializePlayerDataToBytes(t *testing.T) {
-	resultBytes := SerializePlayerDataToBytes(playerData)
+	resultBytes := SerializePlayerDataToBytes(playerData, 100) // Use version 100 for test
 	expectedBytes := playerBytes
 
 	if !reflect.DeepEqual(resultBytes, expectedBytes) {
@@ -142,7 +142,7 @@ func TestSerializePlayerDataToBytes(t *testing.T) {
 }
 
 func TestSerializeEmptyPlayer(t *testing.T) {
-	resultBytes := SerializePlayerDataToBytes(BuildEmptyPlayer(17, "Player17", color.RGBA{100, 150, 200, 255}))
+	resultBytes := SerializePlayerDataToBytes(BuildEmptyPlayer(17, "Player17", color.RGBA{100, 150, 200, 255}), 100) // Use version 100 for test
 	expectedBytes := []byte{17,
 		// Player name
 		8, 80, 108, 97, 121, 101, 114, 49, 55,

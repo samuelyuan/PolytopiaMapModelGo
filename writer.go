@@ -178,11 +178,11 @@ func ConvertMapDataToBytes(tileData [][]TileData, gameVersion int) []byte {
 	return allMapBytes
 }
 
-func ConvertAllPlayerDataToBytes(allPlayerData []PlayerData) []byte {
+func ConvertAllPlayerDataToBytes(allPlayerData []PlayerData, gameVersion int) []byte {
 	allPlayerBytes := make([]byte, 0)
 	allPlayerBytes = append(allPlayerBytes, ConvertUint16Bytes(len(allPlayerData))...)
 	for i := 0; i < len(allPlayerData); i++ {
-		allPlayerBytes = append(allPlayerBytes, SerializePlayerDataToBytes(allPlayerData[i])...)
+		allPlayerBytes = append(allPlayerBytes, SerializePlayerDataToBytes(allPlayerData[i], gameVersion)...)
 	}
 	return allPlayerBytes
 }
@@ -197,8 +197,8 @@ func WriteMapToFile(fileInfo FileInfo, tileDataOverwrite [][]TileData) {
 	WriteAndShiftData(fileInfo.InputFilename, buildMapStartKey(), buildMapEndKey(), allTileBytes)
 }
 
-func WritePlayersToFile(inputFilename string, playersList []PlayerData) {
-	allPlayerBytes := ConvertAllPlayerDataToBytes(playersList)
+func WritePlayersToFile(inputFilename string, playersList []PlayerData, gameVersion int) {
+	allPlayerBytes := ConvertAllPlayerDataToBytes(playersList, gameVersion)
 	WriteAndShiftData(inputFilename, buildAllPlayersStartKey(), buildAllPlayersEndKey(), allPlayerBytes)
 }
 
@@ -616,7 +616,7 @@ func ModifyAllExistingPlayerUnknownArr(inputFilename string) {
 		newRelationArr := BuildNewPlayerUnknownArr(saveOutput.PlayerData[i].AggressionsByPlayers, newPlayerId)
 		saveOutput.PlayerData[i].AggressionsByPlayers = newRelationArr
 	}
-	WritePlayersToFile(inputFilename, saveOutput.PlayerData)
+	WritePlayersToFile(inputFilename, saveOutput.PlayerData, saveOutput.GameVersion)
 }
 
 func AddPlayer(inputFilename string) {
@@ -639,7 +639,7 @@ func AddPlayer(inputFilename string) {
 	}
 	newPlayerData = append(newPlayerData, newPlayer)
 	newPlayerData = append(newPlayerData, saveOutput.PlayerData[len(saveOutput.PlayerData)-1])
-	WritePlayersToFile(inputFilename, newPlayerData)
+	WritePlayersToFile(inputFilename, newPlayerData, saveOutput.GameVersion)
 
 	ModifyAllExistingPlayerUnknownArr(inputFilename)
 }
@@ -761,7 +761,7 @@ func SwapPlayers(fileInfo FileInfo, playerId1 int, playerId2 int) {
 		}
 	}
 
-	WritePlayersToFile(inputFilename, saveOutput.PlayerData)
+	WritePlayersToFile(inputFilename, saveOutput.PlayerData, fileInfo.GameVersion)
 }
 
 func SetTileCapital(fileInfo FileInfo, targetX int, targetY int, newCityName string, updatedTribe int) {
@@ -830,7 +830,7 @@ func SetTileCapital(fileInfo FileInfo, targetX int, targetY int, newCityName str
 		if saveOutput.PlayerData[i].PlayerId == updatedTribe {
 			saveOutput.PlayerData[i].StartTileCoordinates[0] = capitalTile.WorldCoordinates[0]
 			saveOutput.PlayerData[i].StartTileCoordinates[1] = capitalTile.WorldCoordinates[1]
-			WritePlayersToFile(inputFilename, saveOutput.PlayerData)
+			WritePlayersToFile(inputFilename, saveOutput.PlayerData, fileInfo.GameVersion)
 			fmt.Printf("Set player id %v start coordinates to (%v, %v)\n",
 				saveOutput.PlayerData[i].PlayerId, saveOutput.PlayerData[i].StartTileCoordinates[0], saveOutput.PlayerData[i].StartTileCoordinates[1])
 			break

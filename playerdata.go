@@ -2,6 +2,7 @@ package polytopiamapmodel
 
 import (
 	"encoding/binary"
+	"fmt"
 	"image/color"
 	"io"
 	"log"
@@ -66,48 +67,54 @@ type DiplomacyData struct {
 	PreviousAttackTurn     int32
 }
 
-func DeserializePlayerDataFromBytes(streamReader *io.SectionReader) PlayerData {
-	playerId := unsafeReadUint8(streamReader)
+func DeserializePlayerDataFromBytes(streamReader *io.SectionReader, gameVersion int) PlayerData {
+	playerId, _ := readUint8Safe(streamReader, "player ID")
 	playerName := readVarString(streamReader, "playerName")
 	playerAccountId := readVarString(streamReader, "playerAccountId")
-	autoPlay := unsafeReadUint8(streamReader)
-	startTileCoordinates1 := unsafeReadInt32(streamReader)
-	startTileCoordinates2 := unsafeReadInt32(streamReader)
-	tribe := unsafeReadUint16(streamReader)
-	unknownByte1 := unsafeReadUint8(streamReader)
-	difficultyHandicap := unsafeReadUint32(streamReader)
+	autoPlay, _ := readUint8Safe(streamReader, "auto play flag")
+	startTileCoordinates1, _ := readInt32Safe(streamReader, "start coordinates 1")
+	startTileCoordinates2, _ := readInt32Safe(streamReader, "start coordinates 2")
+	tribe, _ := readUint16Safe(streamReader, "tribe")
+	unknownByte1, _ := readUint8Safe(streamReader, "unknown byte")
+	difficultyHandicap, _ := readUint32Safe(streamReader, "difficulty handicap")
 
-	unknownArrLen1 := unsafeReadUint16(streamReader)
-	aggressionsByPlayers := make([]PlayerAggression, 0)
-	for i := 0; i < int(unknownArrLen1); i++ {
-		playerIdOther := unsafeReadUint8(streamReader)
-		aggression := unsafeReadInt32(streamReader)
-		aggressionsByPlayers = append(aggressionsByPlayers, PlayerAggression{
-			PlayerId:   int(playerIdOther),
-			Aggression: int(aggression),
-		})
+	var aggressionsByPlayers []PlayerAggression
+	if gameVersion < 114 {
+		unknownArrLen1, _ := readUint16Safe(streamReader, "aggressions array length")
+		aggressionsByPlayers = make([]PlayerAggression, 0)
+		for i := 0; i < int(unknownArrLen1); i++ {
+			playerIdOther, _ := readUint8Safe(streamReader, fmt.Sprintf("aggression player ID %d", i))
+			aggression, _ := readInt32Safe(streamReader, fmt.Sprintf("aggression value %d", i))
+			aggressionsByPlayers = append(aggressionsByPlayers, PlayerAggression{
+				PlayerId:   int(playerIdOther),
+				Aggression: int(aggression),
+			})
+		}
+	} else {
+		debugPrint("    Skipping aggressions array for version %d\n", gameVersion)
+		aggressionsByPlayers = make([]PlayerAggression, 0)
 	}
 
-	currency := unsafeReadUint32(streamReader)
-	score := unsafeReadUint32(streamReader)
-	unknownInt2 := unsafeReadUint32(streamReader)
-	numCities := unsafeReadUint16(streamReader)
+	currency, _ := readUint32Safe(streamReader, "currency")
+	score, _ := readUint32Safe(streamReader, "score")
+	unknownInt2, _ := readUint32Safe(streamReader, "unknown int")
+	numCities, _ := readUint16Safe(streamReader, "number of cities")
 
-	techArrayLen := unsafeReadUint16(streamReader)
+	techArrayLen, _ := readUint16Safe(streamReader, "tech array length")
 	techArray := make([]int, techArrayLen)
 	for i := 0; i < int(techArrayLen); i++ {
 		techType := unsafeReadUint16(streamReader)
 		techArray[i] = int(techType)
 	}
 
-	encounteredPlayersLen := unsafeReadUint16(streamReader)
+	encounteredPlayersLen, _ := readUint16Safe(streamReader, "encountered players length")
 	encounteredPlayers := make([]int, 0)
 	for i := 0; i < int(encounteredPlayersLen); i++ {
 		playerId := unsafeReadUint8(streamReader)
 		encounteredPlayers = append(encounteredPlayers, int(playerId))
 	}
 
-	numTasks := unsafeReadInt16(streamReader)
+	numTasks, _ := readInt16Safe(streamReader, "number of tasks")
 	taskArr := make([]PlayerTaskData, int(numTasks))
 	for i := 0; i < int(numTasks); i++ {
 		taskType := unsafeReadInt16(streamReader)
@@ -126,20 +133,21 @@ func DeserializePlayerDataFromBytes(streamReader *io.SectionReader) PlayerData {
 		}
 	}
 
-	totalKills := unsafeReadInt32(streamReader)
-	totalLosses := unsafeReadInt32(streamReader)
-	totalTribesDestroyed := unsafeReadInt32(streamReader)
+	totalKills, _ := readInt32Safe(streamReader, "total kills")
+	totalLosses, _ := readInt32Safe(streamReader, "total losses")
+	totalTribesDestroyed, _ := readInt32Safe(streamReader, "total tribes destroyed")
+	debugPrint("    Reading override color...\n")
 	overrideColor := convertByteListToInt(readFixedList(streamReader, 4))
-	overrideTribe := unsafeReadUint8(streamReader)
+	overrideTribe, _ := readUint8Safe(streamReader, "override tribe")
 
-	playerUniqueImprovementsSize := unsafeReadUint16(streamReader)
+	playerUniqueImprovementsSize, _ := readUint16Safe(streamReader, "player unique improvements size")
 	playerUniqueImprovements := make([]int, int(playerUniqueImprovementsSize))
 	for i := 0; i < int(playerUniqueImprovementsSize); i++ {
 		improvement := unsafeReadUint16(streamReader)
 		playerUniqueImprovements[i] = int(improvement)
 	}
 
-	diplomacyArrLen := unsafeReadUint16(streamReader)
+	diplomacyArrLen, _ := readUint16Safe(streamReader, "diplomacy array length")
 	diplomacyArr := make([]DiplomacyData, int(diplomacyArrLen))
 	for i := 0; i < len(diplomacyArr); i++ {
 		diplomacyData := DiplomacyData{}
@@ -149,7 +157,7 @@ func DeserializePlayerDataFromBytes(streamReader *io.SectionReader) PlayerData {
 		diplomacyArr[i] = diplomacyData
 	}
 
-	diplomacyMessagesSize := unsafeReadUint16(streamReader)
+	diplomacyMessagesSize, _ := readUint16Safe(streamReader, "diplomacy messages size")
 	diplomacyMessagesArr := make([]DiplomacyMessage, int(diplomacyMessagesSize))
 	for i := 0; i < int(diplomacyMessagesSize); i++ {
 		messageType := unsafeReadUint8(streamReader)
@@ -161,11 +169,13 @@ func DeserializePlayerDataFromBytes(streamReader *io.SectionReader) PlayerData {
 		}
 	}
 
-	destroyedByTribe := unsafeReadUint8(streamReader)
-	destroyedTurn := unsafeReadUint32(streamReader)
+	destroyedByTribe, _ := readUint8Safe(streamReader, "destroyed by tribe")
+	destroyedTurn, _ := readUint32Safe(streamReader, "destroyed turn")
+	debugPrint("    Reading unknown buffer 2...\n")
 	unknownBuffer2 := convertByteListToInt(readFixedList(streamReader, 4))
-	endScore := unsafeReadInt32(streamReader)
-	playerSkin := unsafeReadUint16(streamReader)
+	endScore, _ := readInt32Safe(streamReader, "end score")
+	playerSkin, _ := readUint16Safe(streamReader, "player skin")
+	debugPrint("    Reading unknown buffer 3...\n")
 	unknownBuffer3 := convertByteListToInt(readFixedList(streamReader, 4))
 
 	return PlayerData{
@@ -202,7 +212,7 @@ func DeserializePlayerDataFromBytes(streamReader *io.SectionReader) PlayerData {
 	}
 }
 
-func SerializePlayerDataToBytes(playerData PlayerData) []byte {
+func SerializePlayerDataToBytes(playerData PlayerData, gameVersion int) []byte {
 	allPlayerData := make([]byte, 0)
 
 	allPlayerData = append(allPlayerData, byte(playerData.PlayerId))
@@ -215,10 +225,13 @@ func SerializePlayerDataToBytes(playerData PlayerData) []byte {
 	allPlayerData = append(allPlayerData, byte(playerData.UnknownByte1))
 	allPlayerData = append(allPlayerData, ConvertUint32Bytes(playerData.DifficultyHandicap)...)
 
-	allPlayerData = append(allPlayerData, ConvertUint16Bytes(len(playerData.AggressionsByPlayers))...)
-	for i := 0; i < len(playerData.AggressionsByPlayers); i++ {
-		allPlayerData = append(allPlayerData, byte(playerData.AggressionsByPlayers[i].PlayerId))
-		allPlayerData = append(allPlayerData, ConvertUint32Bytes(playerData.AggressionsByPlayers[i].Aggression)...)
+	// Only write aggressions array for versions < 114
+	if gameVersion < 114 {
+		allPlayerData = append(allPlayerData, ConvertUint16Bytes(len(playerData.AggressionsByPlayers))...)
+		for i := 0; i < len(playerData.AggressionsByPlayers); i++ {
+			allPlayerData = append(allPlayerData, byte(playerData.AggressionsByPlayers[i].PlayerId))
+			allPlayerData = append(allPlayerData, ConvertUint32Bytes(playerData.AggressionsByPlayers[i].Aggression)...)
+		}
 	}
 
 	allPlayerData = append(allPlayerData, ConvertUint32Bytes(playerData.Currency)...)

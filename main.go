@@ -9,7 +9,15 @@ import (
 
 var (
 	fileOffsetMap = make(map[string]int)
+	DebugMode     = false // Set to true to enable debug output
 )
+
+// debugPrint prints a message only if debug mode is enabled
+func debugPrint(format string, args ...interface{}) {
+	if DebugMode {
+		fmt.Printf(format, args...)
+	}
+}
 
 type PolytopiaSaveOutput struct {
 	MapHeight         int
@@ -60,16 +68,19 @@ func readTileData(streamReader *io.SectionReader, tileData [][]TileData, mapWidt
 	updateFileOffsetMap(fileOffsetMap, streamReader, buildMapEndKey())
 }
 
-func readAllPlayerData(streamReader *io.SectionReader) []PlayerData {
+func readAllPlayerData(streamReader *io.SectionReader, gameVersion int) []PlayerData {
 	allPlayersStartKey := buildAllPlayersStartKey()
 	updateFileOffsetMap(fileOffsetMap, streamReader, allPlayersStartKey)
 
-	numPlayers := unsafeReadUint16(streamReader)
+	numPlayers, _ := readUint16Safe(streamReader, "number of players")
+
 	allPlayerData := make([]PlayerData, int(numPlayers))
 
 	for i := 0; i < int(numPlayers); i++ {
-		playerData := DeserializePlayerDataFromBytes(streamReader)
+		debugPrint("  Reading player %d/%d...\n", i+1, numPlayers)
+		playerData := DeserializePlayerDataFromBytes(streamReader, gameVersion)
 		allPlayerData[i] = playerData
+		debugPrint("  Player %d read - Name: %s, Tribe: %d\n", i+1, playerData.Name, playerData.Tribe)
 	}
 
 	allPlayersEndKey := buildAllPlayersEndKey()
@@ -155,40 +166,55 @@ func ParsePolytopiaFile(streamReader *io.SectionReader) (*PolytopiaSaveOutput, e
 	fileOffsetMap = make(map[string]int)
 
 	// Read initial map state
+	debugPrint("Reading initial map header...\n")
 	updateFileOffsetMap(fileOffsetMap, streamReader, buildMapHeaderStartKey())
 	initialMapHeaderOutput := DeserializeMapHeaderFromBytes(streamReader)
 	updateFileOffsetMap(fileOffsetMap, streamReader, buildMapHeaderEndKey())
+	debugPrint("Initial map header read - Size: %dx%d, Version: %d\n",
+		initialMapHeaderOutput.MapWidth, initialMapHeaderOutput.MapHeight,
+		initialMapHeaderOutput.MapHeaderInput.Version1)
 
 	initialTileData := make([][]TileData, initialMapHeaderOutput.MapHeight)
 	for i := 0; i < initialMapHeaderOutput.MapHeight; i++ {
 		initialTileData[i] = make([]TileData, initialMapHeaderOutput.MapWidth)
 	}
 	gameVersion := int(initialMapHeaderOutput.MapHeaderInput.Version1)
+	debugPrint("Reading initial tile data...\n")
 	readTileData(streamReader, initialTileData, initialMapHeaderOutput.MapWidth, initialMapHeaderOutput.MapHeight, gameVersion)
-	initialPlayerData := readAllPlayerData(streamReader)
+	debugPrint("Reading initial player data...\n")
+	initialPlayerData := readAllPlayerData(streamReader, gameVersion)
+	debugPrint("Initial player data read - %d players\n", len(initialPlayerData))
 
 	ownerTribeMap := buildOwnerTribeMap(initialPlayerData)
 
 	_ = readFixedList(streamReader, 3)
 
 	// Read current map state
+	debugPrint("Reading current map header...\n")
 	updateFileOffsetMap(fileOffsetMap, streamReader, buildMapHeaderStartKey())
 	currentMapHeaderOutput := DeserializeMapHeaderFromBytes(streamReader)
 	updateFileOffsetMap(fileOffsetMap, streamReader, buildMapHeaderEndKey())
+	debugPrint("Current map header read - Size: %dx%d\n",
+		currentMapHeaderOutput.MapWidth, currentMapHeaderOutput.MapHeight)
 
 	tileData := make([][]TileData, currentMapHeaderOutput.MapHeight)
 	for i := 0; i < currentMapHeaderOutput.MapHeight; i++ {
 		tileData[i] = make([]TileData, currentMapHeaderOutput.MapWidth)
 	}
+	debugPrint("Reading current tile data...\n")
 	readTileData(streamReader, tileData, currentMapHeaderOutput.MapWidth, currentMapHeaderOutput.MapHeight, gameVersion)
-	playerData := readAllPlayerData(streamReader)
+	debugPrint("Reading current player data...\n")
+	playerData := readAllPlayerData(streamReader, gameVersion)
+	debugPrint("Current player data read - %d players\n", len(playerData))
 
 	ownerTribeMap = buildOwnerTribeMap(playerData)
 	tribeCityMap := buildTribeCityMap(currentMapHeaderOutput, tileData)
 
 	_ = readFixedList(streamReader, 2)
 
+	debugPrint("Reading actions...\n")
 	turnCaptureMap := readAllActions(streamReader)
+	debugPrint("Actions read - %d turns with captures\n", len(turnCaptureMap))
 
 	output := &PolytopiaSaveOutput{
 		MapHeight:         currentMapHeaderOutput.MapHeight,

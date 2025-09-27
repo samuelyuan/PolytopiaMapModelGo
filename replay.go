@@ -216,7 +216,7 @@ func readAllActions(streamReader *io.SectionReader) map[int][]ActionCaptureCity 
 		}
 
 		if len(buffer) > 0 {
-			replayActions = append(replayActions, fmt.Sprintf("Index", i, ", action type:", actionType, ", buffer:", buffer))
+			replayActions = append(replayActions, fmt.Sprintf("Index %d, action type: %d, buffer: %v", i, actionType, buffer))
 		}
 	}
 
