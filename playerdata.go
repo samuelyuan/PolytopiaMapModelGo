@@ -8,6 +8,13 @@ import (
 	"log"
 )
 
+type CityLocationData struct {
+	X        int
+	Y        int
+	CityName string
+	Capital  int
+}
+
 type PlayerData struct {
 	PlayerId             int
 	Name                 string
@@ -354,4 +361,69 @@ func BuildEmptyPlayer(index int, playerName string, overrideColor color.RGBA) Pl
 	}
 
 	return playerData
+}
+
+func readAllPlayerData(streamReader *io.SectionReader, gameVersion int) []PlayerData {
+	allPlayersStartKey := buildAllPlayersStartKey()
+	updateFileOffsetMap(fileOffsetMap, streamReader, allPlayersStartKey)
+
+	numPlayers, _ := readUint16Safe(streamReader, "number of players")
+
+	allPlayerData := make([]PlayerData, int(numPlayers))
+
+	for i := 0; i < int(numPlayers); i++ {
+		debugPrint("  Reading player %d/%d...\n", i+1, numPlayers)
+		playerData := DeserializePlayerDataFromBytes(streamReader, gameVersion)
+		allPlayerData[i] = playerData
+		debugPrint("  Player %d read - Name: %s, Tribe: %d\n", i+1, playerData.Name, playerData.Tribe)
+	}
+
+	allPlayersEndKey := buildAllPlayersEndKey()
+	updateFileOffsetMap(fileOffsetMap, streamReader, allPlayersEndKey)
+
+	return allPlayerData
+}
+
+func buildOwnerTribeMap(allPlayerData []PlayerData) map[int]int {
+	ownerTribeMap := make(map[int]int)
+
+	for i := 0; i < len(allPlayerData); i++ {
+		playerData := allPlayerData[i]
+		mappedTribe, ok := ownerTribeMap[playerData.PlayerId]
+		if ok {
+			log.Fatal(fmt.Sprintf("Owner to tribe map has duplicate player id %v already mapped to %v", playerData.PlayerId, mappedTribe))
+		}
+		ownerTribeMap[playerData.PlayerId] = playerData.Tribe
+	}
+
+	return ownerTribeMap
+}
+
+func buildTribeCityMap(currentMapHeaderOutput MapHeaderOutput, tileData [][]TileData) map[int][]CityLocationData {
+	tribeCityMap := make(map[int][]CityLocationData)
+	for i := 0; i < int(currentMapHeaderOutput.MapHeight); i++ {
+		for j := 0; j < int(currentMapHeaderOutput.MapWidth); j++ {
+			if tileData[i][j].ImprovementData != nil && tileData[i][j].ImprovementType == 1 {
+				tribeOwner := tileData[i][j].Owner
+				_, ok := tribeCityMap[tribeOwner]
+				if !ok {
+					tribeCityMap[tribeOwner] = make([]CityLocationData, 0)
+				}
+
+				cityName := ""
+				if tileData[i][j].ImprovementData != nil {
+					cityName = tileData[i][j].ImprovementData.CityName
+				}
+
+				cityLocationData := CityLocationData{
+					X:        tileData[i][j].WorldCoordinates[0],
+					Y:        tileData[i][j].WorldCoordinates[1],
+					CityName: cityName,
+					Capital:  tileData[i][j].Capital,
+				}
+				tribeCityMap[tribeOwner] = append(tribeCityMap[tribeOwner], cityLocationData)
+			}
+		}
+	}
+	return tribeCityMap
 }

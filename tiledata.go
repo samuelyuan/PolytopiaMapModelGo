@@ -296,3 +296,22 @@ func SerializeUnitDataToBytes(unitData UnitData) []byte {
 	data = append(data, ConvertUint16Bytes(int(unitData.CreatedTurn))...)
 	return data
 }
+
+func readTileData(streamReader *io.SectionReader, tileData [][]TileData, mapWidth int, mapHeight int, gameVersion int) {
+	updateFileOffsetMap(fileOffsetMap, streamReader, buildMapStartKey())
+
+	for i := 0; i < int(mapHeight); i++ {
+		for j := 0; j < int(mapWidth); j++ {
+			tileStartKey := buildTileStartKey(j, i)
+			updateFileOffsetMap(fileOffsetMap, streamReader, tileStartKey)
+
+			tileData[i][j] = DeserializeTileDataFromBytes(streamReader, i, j, gameVersion)
+
+			tileEndKey := buildTileEndKey(j, i)
+			updateFileOffsetMap(fileOffsetMap, streamReader, tileEndKey)
+		}
+	}
+
+	updateFileOffsetMap(fileOffsetMap, streamReader, buildMapEndKey())
+}
+

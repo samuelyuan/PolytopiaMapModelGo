@@ -154,3 +154,11 @@ func readFixedList(streamReader *io.SectionReader, listSize int) []byte {
 	}
 	return buffer
 }
+
+func convertByteListToInt(oldArr []byte) []int {
+	newArr := make([]int, len(oldArr))
+	for i := 0; i < len(newArr); i++ {
+		newArr[i] = int(oldArr[i])
+	}
+	return newArr
+}
